@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Shield, Home, Gamepad2, User, LogOut, Bell } from "lucide-react";
+import { Shield, Home, Gamepad2, User, LogOut, Bell, Newspaper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -42,6 +42,15 @@ export const Navbar = () => {
             >
               <Gamepad2 className="w-4 h-4" />
               Games
+            </Button>
+          </Link>
+          <Link to="/news">
+            <Button 
+              variant={isActive("/news") ? "default" : "ghost"}
+              className="gap-2"
+            >
+              <Newspaper className="w-4 h-4" />
+              News
             </Button>
           </Link>
           <Link to="/profile">

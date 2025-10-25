@@ -3,12 +3,12 @@ import {
   Trophy,
   Target,
   Flame,
-  TrendingUp,
   Crown,
   AlertTriangle,
   ExternalLink,
   Play,
-  MessageSquare,
+  Lightbulb,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -54,11 +54,28 @@ const Dashboard = () => {
       time: "1 day ago",
       severity: "medium",
     },
+  ];
+
+  const funFacts = [
     {
-      title: "AI Voice Cloning Used in Recent Scams",
-      source: "Tech Security Report",
-      time: "2 days ago",
-      severity: "high",
+      icon: "💰",
+      fact: "Global losses to cybercrime exceeded $8 trillion in 2023",
+      category: "Impact",
+    },
+    {
+      icon: "📧",
+      fact: "90% of data breaches start with a phishing email",
+      category: "Phishing",
+    },
+    {
+      icon: "⏰",
+      fact: "A cyber attack happens every 39 seconds on average",
+      category: "Frequency",
+    },
+    {
+      icon: "🔒",
+      fact: "81% of hacking-related breaches used stolen or weak passwords",
+      category: "Security",
     },
   ];
 
@@ -133,6 +150,32 @@ const Dashboard = () => {
                   <div className="text-2xl font-bold">Level {userStats.level}</div>
                   <div className="text-sm text-muted-foreground">Current Level</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Fun Facts */}
+            <div className="card-glass p-6 rounded-xl">
+              <div className="flex items-center gap-2 mb-6">
+                <Lightbulb className="w-6 h-6 text-warning" />
+                <h2 className="text-2xl font-bold">Did You Know?</h2>
+                <span className="ml-auto text-xs text-muted-foreground">Fraud Facts</span>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                {funFacts.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-muted/20 p-4 rounded-lg border border-border/50 hover:border-primary/50 transition-colors"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="text-3xl">{item.icon}</div>
+                      <div className="flex-1">
+                        <div className="text-xs text-primary font-medium mb-1">{item.category}</div>
+                        <p className="text-sm">{item.fact}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -233,10 +276,12 @@ const Dashboard = () => {
                 ))}
               </div>
 
-              <Button variant="outline" size="sm" className="w-full mt-4">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                View All Alerts
-              </Button>
+              <Link to="/news">
+                <Button variant="outline" size="sm" className="w-full mt-4">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View All News
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
