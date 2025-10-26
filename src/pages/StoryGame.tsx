@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ChatBot } from "@/components/ChatBot";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, CheckCircle, XCircle, Trophy, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -42,6 +43,64 @@ const StoryGame = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [storyChoices, setStoryChoices] = useState<number[]>([]);
+  const [sceneImages, setSceneImages] = useState<Record<number, string>>({});
+  const [loadingImage, setLoadingImage] = useState(false);
+
+  // Load image for current scene
+  useEffect(() => {
+    const loadSceneImage = async () => {
+      const scene = scenes[currentScene];
+      
+      // Skip if image already loaded
+      if (sceneImages[currentScene]) {
+        return;
+      }
+
+      setLoadingImage(true);
+      
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-scene-image`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sceneTitle: scene.title,
+              sceneDescription: scene.description,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to generate image');
+        }
+
+        const data = await response.json();
+        
+        if (data.imageUrl) {
+          setSceneImages(prev => ({
+            ...prev,
+            [currentScene]: data.imageUrl
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading scene image:', error);
+        toast({
+          title: "Image Generation Failed",
+          description: "Using placeholder, but the game continues!",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingImage(false);
+      }
+    };
+
+    if (gamePhase === "story") {
+      loadSceneImage();
+    }
+  }, [currentScene, gamePhase]);
 
   const scenes: Scene[] = [
     {
@@ -307,7 +366,28 @@ const StoryGame = () => {
 
               {/* Scene Content */}
               <div className="text-center mb-8">
-                <div className="text-7xl mb-4">{scenes[currentScene].image}</div>
+                {/* Comic-style Image */}
+                <div className="mb-6 rounded-xl overflow-hidden bg-gradient-primary/5 border border-primary/20">
+                  {loadingImage ? (
+                    <div className="w-full aspect-video flex items-center justify-center">
+                      <div className="text-center space-y-4 p-8">
+                        <Skeleton className="w-full aspect-video" />
+                        <p className="text-sm text-muted-foreground">Generating comic scene...</p>
+                      </div>
+                    </div>
+                  ) : sceneImages[currentScene] ? (
+                    <img 
+                      src={sceneImages[currentScene]} 
+                      alt={scenes[currentScene].title}
+                      className="w-full aspect-video object-cover"
+                    />
+                  ) : (
+                    <div className="w-full aspect-video flex items-center justify-center text-7xl bg-muted/20">
+                      {scenes[currentScene].image}
+                    </div>
+                  )}
+                </div>
+                
                 <h2 className="text-3xl font-bold mb-4">{scenes[currentScene].title}</h2>
                 <p className="text-lg text-muted-foreground leading-relaxed">
                   {scenes[currentScene].description}

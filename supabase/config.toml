@@ -1,0 +1,4 @@
+project_id = "hfkltwvphthpkumckaex"
+
+[functions.generate-scene-image]
+verify_jwt = false
