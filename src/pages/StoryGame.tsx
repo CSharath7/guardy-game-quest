@@ -15,11 +15,17 @@ interface Choice {
   isCorrect?: boolean;
 }
 
+interface Frame {
+  image: string;
+  dialogue: string;
+  speaker?: string;
+  imagePrompt: string;
+}
+
 interface Scene {
   id: number;
   title: string;
-  description: string;
-  image: string;
+  frames: Frame[];
   choices: Choice[];
   feedback?: string;
   isEnd?: boolean;
@@ -43,20 +49,19 @@ const StoryGame = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [storyChoices, setStoryChoices] = useState<number[]>([]);
-  const [sceneImages, setSceneImages] = useState<Record<number, string>>({});
-  const [loadingImage, setLoadingImage] = useState(false);
+  const [frameImages, setFrameImages] = useState<Record<string, string>>({});
+  const [loadingFrames, setLoadingFrames] = useState<Set<string>>(new Set());
+  const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+  const [showChoices, setShowChoices] = useState(false);
 
-  // Load image for current scene
+  // Load frame images
   useEffect(() => {
-    const loadSceneImage = async () => {
-      const scene = scenes[currentScene];
-      
-      // Skip if image already loaded
-      if (sceneImages[currentScene]) {
+    const loadFrameImage = async (frameKey: string, prompt: string) => {
+      if (frameImages[frameKey] || loadingFrames.has(frameKey)) {
         return;
       }
 
-      setLoadingImage(true);
+      setLoadingFrames(prev => new Set(prev).add(frameKey));
       
       try {
         const response = await fetch(
@@ -67,8 +72,8 @@ const StoryGame = () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              sceneTitle: scene.title,
-              sceneDescription: scene.description,
+              sceneTitle: scenes[currentScene].title,
+              sceneDescription: prompt,
             }),
           }
         );
@@ -80,34 +85,78 @@ const StoryGame = () => {
         const data = await response.json();
         
         if (data.imageUrl) {
-          setSceneImages(prev => ({
+          setFrameImages(prev => ({
             ...prev,
-            [currentScene]: data.imageUrl
+            [frameKey]: data.imageUrl
           }));
         }
       } catch (error) {
-        console.error('Error loading scene image:', error);
-        toast({
-          title: "Image Generation Failed",
-          description: "Using placeholder, but the game continues!",
-          variant: "destructive",
-        });
+        console.error('Error loading frame image:', error);
       } finally {
-        setLoadingImage(false);
+        setLoadingFrames(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(frameKey);
+          return newSet;
+        });
       }
     };
 
-    if (gamePhase === "story") {
-      loadSceneImage();
+    if (gamePhase === "story" && scenes[currentScene]) {
+      const currentFrame = scenes[currentScene].frames[currentFrameIndex];
+      if (currentFrame) {
+        const frameKey = `scene${currentScene}_frame${currentFrameIndex}`;
+        loadFrameImage(frameKey, currentFrame.imagePrompt);
+      }
     }
-  }, [currentScene, gamePhase]);
+  }, [currentScene, currentFrameIndex, gamePhase]);
+
+  // Auto-advance frames or show choices
+  useEffect(() => {
+    if (gamePhase !== "story" || showFeedback) return;
+
+    const scene = scenes[currentScene];
+    if (currentFrameIndex < scene.frames.length - 1) {
+      // Still more frames to show
+      const timer = setTimeout(() => {
+        setCurrentFrameIndex(currentFrameIndex + 1);
+      }, 3000); // 3 seconds per frame
+      return () => clearTimeout(timer);
+    } else {
+      // All frames shown, show choices
+      setShowChoices(true);
+    }
+  }, [currentFrameIndex, currentScene, gamePhase, showFeedback]);
 
   const scenes: Scene[] = [
     {
       id: 0,
       title: "The Unexpected Email",
-      description: "You receive an email claiming to be from your bank. The subject line reads: 'URGENT: Account Security Alert - Action Required Immediately'. The email states that suspicious activity has been detected on your account and you need to verify your identity within 24 hours or your account will be suspended.",
-      image: "📧",
+      frames: [
+        {
+          image: "📧",
+          speaker: "Narrator",
+          dialogue: "It's a regular Tuesday morning. You're having coffee and checking your emails...",
+          imagePrompt: "Comic style: A person sitting at a desk with a laptop, holding a coffee mug, morning sunlight coming through window, relaxed atmosphere, warm colors"
+        },
+        {
+          image: "⚠️",
+          speaker: "Email Alert",
+          dialogue: "URGENT: Account Security Alert - Action Required Immediately!",
+          imagePrompt: "Comic style: Close-up of laptop screen showing an alarming email with red warning symbols, urgent text, dramatic lighting, tension-filled composition"
+        },
+        {
+          image: "😰",
+          speaker: "You",
+          dialogue: "What?! Suspicious activity? My account will be suspended in 24 hours?!",
+          imagePrompt: "Comic style: Person looking shocked and worried at their laptop screen, hand on face in concern, sweat drops, dramatic expression, concerned body language"
+        },
+        {
+          image: "🤔",
+          speaker: "Narrator",
+          dialogue: "The email claims to be from your bank. It has their logo and looks professional. What will you do?",
+          imagePrompt: "Comic style: Split panel showing the official-looking email with bank logo on one side and the person thinking deeply with question marks around their head on the other side"
+        }
+      ],
       choices: [
         { text: "Click the link in the email to verify my account", next: 1, isCorrect: false },
         { text: "Call the bank using the number on their official website", next: 2, isCorrect: true },
@@ -117,8 +166,32 @@ const StoryGame = () => {
     {
       id: 1,
       title: "The Fake Website",
-      description: "You clicked the link and it took you to what looks like your bank's website. However, you notice the URL is slightly different - it's 'bankofindia-secure.com' instead of 'bankofindia.com'. The site is asking for your username, password, and OTP.",
-      image: "🌐",
+      frames: [
+        {
+          image: "👆",
+          speaker: "You",
+          dialogue: "I better click this link quickly before my account gets suspended!",
+          imagePrompt: "Comic style: Close-up of finger clicking a mouse button, urgent action, motion lines showing speed, dramatic angle"
+        },
+        {
+          image: "🌐",
+          speaker: "Narrator",
+          dialogue: "The page loads. It looks exactly like your bank's website... but wait...",
+          imagePrompt: "Comic style: Browser window showing a banking website that looks professional but the URL bar shows 'bankofindia-secure.com' with a subtle red glow around it"
+        },
+        {
+          image: "🔍",
+          speaker: "You",
+          dialogue: "Hmm... the URL says 'bankofindia-secure.com' instead of 'bankofindia.com'...",
+          imagePrompt: "Comic style: Person squinting at screen, examining the URL bar closely, suspicious expression, detective-like pose with hand on chin"
+        },
+        {
+          image: "🔑",
+          speaker: "Website",
+          dialogue: "Please enter your Username, Password, and OTP to verify your identity.",
+          imagePrompt: "Comic style: Login form on screen with three input fields glowing ominously, asking for sensitive information, dark shadows creating suspicious atmosphere"
+        }
+      ],
       feedback: "Warning! This was a phishing attempt. The link led to a fake website designed to steal your credentials.",
       choices: [
         { text: "Enter my credentials - the site looks legitimate", next: 4, isCorrect: false },
@@ -129,8 +202,32 @@ const StoryGame = () => {
     {
       id: 2,
       title: "The Verification Call",
-      description: "You called your bank using the official number from their website. The customer service representative confirms there is NO suspicious activity on your account and no email was sent by them. They thank you for being vigilant and confirm your account is completely safe.",
-      image: "✅",
+      frames: [
+        {
+          image: "📱",
+          speaker: "You",
+          dialogue: "Let me call the bank directly using the number from their official website, not from this email.",
+          imagePrompt: "Comic style: Person holding smartphone, looking at bank's official website on laptop, careful and methodical approach, bright thoughtful expression"
+        },
+        {
+          image: "☎️",
+          speaker: "Bank Representative",
+          dialogue: "Hello! Thank you for calling. Let me check your account... I can confirm there is NO suspicious activity.",
+          imagePrompt: "Comic style: Split screen showing friendly bank representative with headset on one side and relieved customer on phone on the other side, professional office setting"
+        },
+        {
+          image: "✅",
+          speaker: "Bank Representative",
+          dialogue: "We did NOT send any email about account suspension. This was a phishing attempt. Your account is completely safe.",
+          imagePrompt: "Comic style: Bank representative looking at computer screen showing secure account status with green checkmarks, reassuring professional atmosphere"
+        },
+        {
+          image: "😌",
+          speaker: "Bank Representative",
+          dialogue: "Thank you for being vigilant and verifying with us directly! You did exactly the right thing.",
+          imagePrompt: "Comic style: Customer looking relieved and proud, thumbs up gesture, positive energy, bright colors showing success and safety"
+        }
+      ],
       feedback: "Excellent decision! You successfully avoided a phishing scam by verifying through official channels.",
       choices: [
         { text: "Report the phishing email to the bank", next: 7, isCorrect: true },
@@ -140,8 +237,32 @@ const StoryGame = () => {
     {
       id: 3,
       title: "The Scammer's Response",
-      description: "You replied to the email. Within minutes, you receive a response with urgent language pressuring you to 'click here immediately' or face account closure. The email now claims you have only 2 hours left.",
-      image: "⚠️",
+      frames: [
+        {
+          image: "✉️",
+          speaker: "You",
+          dialogue: "I'll reply asking if this is really from the bank. That seems safe enough...",
+          imagePrompt: "Comic style: Person typing a reply email with concerned expression, questioning look, sitting at desk with laptop"
+        },
+        {
+          image: "📨",
+          speaker: "Narrator",
+          dialogue: "Just 3 minutes later, another email arrives. The response is instant... too instant.",
+          imagePrompt: "Comic style: Email notification popping up with dramatic speed lines, clock showing only 3 minutes passed, fast-paced action feel"
+        },
+        {
+          image: "⚠️",
+          speaker: "Scammer Email",
+          dialogue: "FINAL WARNING! Only 2 HOURS remaining! Click HERE IMMEDIATELY or your account will be permanently closed!",
+          imagePrompt: "Comic style: Aggressive email with red text, multiple exclamation marks, urgent warning symbols, pressure tactics visible, threatening tone"
+        },
+        {
+          image: "😟",
+          speaker: "Narrator",
+          dialogue: "By replying, you've confirmed your email is active. The scammer now knows you're engaging...",
+          imagePrompt: "Comic style: Dark figure at computer with evil grin, seeing reply notification, adding email to active targets list, sinister atmosphere"
+        }
+      ],
       feedback: "Replying to suspicious emails can confirm your email address is active, leading to more scam attempts.",
       choices: [
         { text: "Ignore and delete all emails from this sender", next: 7, isCorrect: true },
@@ -151,8 +272,32 @@ const StoryGame = () => {
     {
       id: 4,
       title: "Account Compromised!",
-      description: "You entered your credentials on the fake website. Within hours, your account shows unauthorized transactions totaling ₹45,000. The scammers now have access to your banking credentials and personal information.",
-      image: "🚨",
+      frames: [
+        {
+          image: "💻",
+          speaker: "You",
+          dialogue: "Okay, I'll just enter my details quickly to get this sorted out...",
+          imagePrompt: "Comic style: Person typing credentials into fake website, unsuspecting expression, normal lighting before disaster strikes"
+        },
+        {
+          image: "⚡",
+          speaker: "Narrator",
+          dialogue: "The moment you hit enter, your information is instantly captured by the scammers...",
+          imagePrompt: "Comic style: Data streaming from screen through internet cables to dark hooded figure, digital theft in action, electric blue data streams"
+        },
+        {
+          image: "📱",
+          speaker: "Phone Notification",
+          dialogue: "*PING* Transaction: -₹45,000. *PING* Transaction: -₹15,000. *PING* Transaction: -₹30,000...",
+          imagePrompt: "Comic style: Phone screen showing multiple transaction notifications in red, money flying away, shocked person's face reflected in screen"
+        },
+        {
+          image: "🚨",
+          speaker: "Narrator",
+          dialogue: "Within hours, ₹45,000 has been stolen. The scammers have your username, password, OTP, and more...",
+          imagePrompt: "Comic style: Bank account screen showing negative balance, red alerts everywhere, person with head in hands in despair, dramatic dark lighting"
+        }
+      ],
       feedback: "This was the worst possible outcome. Never enter credentials on suspicious websites!",
       isEnd: true,
       choices: [],
@@ -160,8 +305,32 @@ const StoryGame = () => {
     {
       id: 5,
       title: "Crisis Averted",
-      description: "You closed the browser immediately and called your bank to report the phishing attempt. They assured you that your account is safe and added extra security monitoring. They also thanked you for reporting it, as it helps them alert other customers.",
-      image: "🛡️",
+      frames: [
+        {
+          image: "❌",
+          speaker: "You",
+          dialogue: "This doesn't feel right. That URL is wrong. I'm closing this immediately!",
+          imagePrompt: "Comic style: Hand clicking X button to close browser window, decisive action, determined expression, taking control"
+        },
+        {
+          image: "📞",
+          speaker: "You",
+          dialogue: "I need to report this to my bank right away!",
+          imagePrompt: "Comic style: Person dialing phone urgently but calmly, responsible action, good citizenship, bright determined look"
+        },
+        {
+          image: "🛡️",
+          speaker: "Bank Security",
+          dialogue: "Thank you for reporting this! We've added extra security monitoring to your account. You're completely safe.",
+          imagePrompt: "Comic style: Security shield icon on screen with green checkmarks, protected account interface, safe and secure atmosphere with blue protective glow"
+        },
+        {
+          image: "🏆",
+          speaker: "Bank Security",
+          dialogue: "Your report helps us alert other customers. You potentially saved many others from this scam!",
+          imagePrompt: "Comic style: Multiple people being protected by a digital shield, community safety, hero moment, bright triumphant colors and grateful expressions"
+        }
+      ],
       feedback: "Perfect! You took all the right steps to protect yourself.",
       isEnd: true,
       choices: [],
@@ -169,8 +338,32 @@ const StoryGame = () => {
     {
       id: 6,
       title: "Tracked by Scammers",
-      description: "Even though you entered fake credentials, the scammers now know your email is active and you're engaging with their phishing attempts. You start receiving multiple scam emails daily across different topics.",
-      image: "📨",
+      frames: [
+        {
+          image: "😏",
+          speaker: "You",
+          dialogue: "I'll be clever and enter fake information. That'll show them!",
+          imagePrompt: "Comic style: Person with smug expression typing fake credentials, thinking they're outsmarting scammers, false confidence"
+        },
+        {
+          image: "📊",
+          speaker: "Narrator",
+          dialogue: "But the scammers don't care if the credentials are fake. They now know your email is active and you engage with scams...",
+          imagePrompt: "Comic style: Scammer's screen showing email marked as 'ACTIVE TARGET' added to list, analytics showing user engagement, sinister glow"
+        },
+        {
+          image: "📨",
+          speaker: "Narrator",
+          dialogue: "Over the next few days...",
+          imagePrompt: "Comic style: Calendar pages flipping rapidly, time passing, building suspense"
+        },
+        {
+          image: "😫",
+          speaker: "You",
+          dialogue: "Why am I getting 20+ scam emails every day now? Lottery wins, crypto investments, urgent packages...",
+          imagePrompt: "Comic style: Inbox flooded with dozens of scam emails, person overwhelmed looking at screen, email notifications everywhere, chaos and frustration"
+        }
+      ],
       feedback: "Never engage with phishing sites, even to test them. This marks you as a potential target.",
       isEnd: true,
       choices: [],
@@ -178,8 +371,32 @@ const StoryGame = () => {
     {
       id: 7,
       title: "Cyber Hero",
-      description: "You reported the phishing email to your bank. They immediately sent out alerts to all customers about this specific scam, potentially saving thousands of people from falling victim. Your vigilance made a real difference!",
-      image: "🏆",
+      frames: [
+        {
+          image: "📧",
+          speaker: "You",
+          dialogue: "I should forward this phishing email to my bank's security team.",
+          imagePrompt: "Comic style: Person forwarding email to bank security, responsible action, civic duty, focused determined expression"
+        },
+        {
+          image: "🔍",
+          speaker: "Bank Security Team",
+          dialogue: "Thank you! We're analyzing this scam and will alert all our customers immediately.",
+          imagePrompt: "Comic style: Security team examining the phishing email on large monitors, professional security operations center, serious focused work"
+        },
+        {
+          image: "📢",
+          speaker: "Narrator",
+          dialogue: "Within hours, the bank sends alerts to all 2 million customers warning them about this exact scam.",
+          imagePrompt: "Comic style: Alert messages being sent out to thousands of phones and computers, broadcast waves spreading across city, mass communication"
+        },
+        {
+          image: "🏆",
+          speaker: "Narrator",
+          dialogue: "Your quick action potentially saved thousands of people from losing their money. You're a cyber hero!",
+          imagePrompt: "Comic style: Hero pose silhouette with cape made of digital shield, protecting crowd of grateful people below, triumphant heroic colors, inspirational scene"
+        }
+      ],
       feedback: "Outstanding! Reporting scams helps protect the entire community.",
       isEnd: true,
       choices: [],
@@ -187,8 +404,32 @@ const StoryGame = () => {
     {
       id: 8,
       title: "Missed Opportunity",
-      description: "While you stayed safe, other customers may have fallen for the same scam. Reporting helps banks and authorities track and shut down these operations.",
-      image: "⚡",
+      frames: [
+        {
+          image: "🗑️",
+          speaker: "You",
+          dialogue: "Well, I'm safe now. I'll just delete this email and move on with my day.",
+          imagePrompt: "Comic style: Person clicking delete button, casual dismissive attitude, moving on quickly, neutral colors"
+        },
+        {
+          image: "📱",
+          speaker: "Narrator",
+          dialogue: "Meanwhile, the same scam email is being sent to thousands of other people...",
+          imagePrompt: "Comic style: Thousands of identical phishing emails flying through digital space like a swarm, spreading across the internet, ominous view"
+        },
+        {
+          image: "😰",
+          speaker: "Narrator",
+          dialogue: "Without reports, the bank doesn't know about this scam. Some of those people will fall victim...",
+          imagePrompt: "Comic style: Split screen showing different people receiving the email - some looking worried, some about to click, vulnerable unaware expressions"
+        },
+        {
+          image: "⚡",
+          speaker: "Narrator",
+          dialogue: "A simple report could have warned everyone and shut down the operation. Always report scams!",
+          imagePrompt: "Comic style: Ghosted/faded image of what could have been - warning alerts protecting people, contrast between reality and missed opportunity"
+        }
+      ],
       feedback: "Always report phishing attempts - you could help save others from becoming victims.",
       isEnd: true,
       choices: [],
@@ -260,6 +501,7 @@ const StoryGame = () => {
 
   const handleChoice = (choice: Choice) => {
     setShowFeedback(true);
+    setShowChoices(false);
     setStoryChoices([...storyChoices, currentScene]);
     
     if (choice.isCorrect) {
@@ -278,6 +520,7 @@ const StoryGame = () => {
 
     setTimeout(() => {
       setShowFeedback(false);
+      setCurrentFrameIndex(0);
       if (scenes[choice.next].isEnd) {
         setTimeout(() => {
           setGamePhase("quiz");
@@ -364,34 +607,69 @@ const StoryGame = () => {
                 <Progress value={(currentScene / scenes.length) * 100} className="h-2" />
               </div>
 
-              {/* Scene Content */}
-              <div className="text-center mb-8">
-                {/* Comic-style Image */}
-                <div className="mb-6 rounded-xl overflow-hidden bg-gradient-primary/5 border border-primary/20">
-                  {loadingImage ? (
-                    <div className="w-full aspect-video flex items-center justify-center">
-                      <div className="text-center space-y-4 p-8">
-                        <Skeleton className="w-full aspect-video" />
-                        <p className="text-sm text-muted-foreground">Generating comic scene...</p>
-                      </div>
-                    </div>
-                  ) : sceneImages[currentScene] ? (
-                    <img 
-                      src={sceneImages[currentScene]} 
-                      alt={scenes[currentScene].title}
-                      className="w-full aspect-video object-cover"
-                    />
-                  ) : (
-                    <div className="w-full aspect-video flex items-center justify-center text-7xl bg-muted/20">
-                      {scenes[currentScene].image}
-                    </div>
-                  )}
+              {/* Comic Strip Frame */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold mb-6 text-center">{scenes[currentScene].title}</h2>
+                
+                {/* Current Frame */}
+                <div className="card-glass rounded-2xl overflow-hidden border-2 border-primary/30 mb-4">
+                  {/* Frame Image */}
+                  <div className="relative bg-gradient-primary/5">
+                    {(() => {
+                      const frameKey = `scene${currentScene}_frame${currentFrameIndex}`;
+                      const isLoading = loadingFrames.has(frameKey);
+                      const imageUrl = frameImages[frameKey];
+                      const currentFrame = scenes[currentScene].frames[currentFrameIndex];
+                      
+                      return isLoading ? (
+                        <div className="w-full aspect-video flex items-center justify-center p-8">
+                          <div className="text-center space-y-4 w-full">
+                            <Skeleton className="w-full aspect-video" />
+                            <p className="text-sm text-muted-foreground">Generating frame {currentFrameIndex + 1}...</p>
+                          </div>
+                        </div>
+                      ) : imageUrl ? (
+                        <img 
+                          src={imageUrl} 
+                          alt={currentFrame?.dialogue || ''}
+                          className="w-full aspect-video object-cover"
+                        />
+                      ) : (
+                        <div className="w-full aspect-video flex items-center justify-center text-7xl bg-muted/20">
+                          {currentFrame?.image}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  
+                  {/* Dialogue Box */}
+                  <div className="p-6 bg-background/95 border-t-2 border-primary/20">
+                    {scenes[currentScene].frames[currentFrameIndex]?.speaker && (
+                      <p className="text-sm font-bold text-primary mb-2">
+                        {scenes[currentScene].frames[currentFrameIndex].speaker}:
+                      </p>
+                    )}
+                    <p className="text-lg leading-relaxed">
+                      {scenes[currentScene].frames[currentFrameIndex]?.dialogue}
+                    </p>
+                  </div>
                 </div>
                 
-                <h2 className="text-3xl font-bold mb-4">{scenes[currentScene].title}</h2>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  {scenes[currentScene].description}
-                </p>
+                {/* Frame Progress */}
+                <div className="flex justify-center gap-2 mb-6">
+                  {scenes[currentScene].frames.map((_, idx) => (
+                    <div 
+                      key={idx}
+                      className={`h-2 rounded-full transition-all ${
+                        idx === currentFrameIndex 
+                          ? 'w-8 bg-primary' 
+                          : idx < currentFrameIndex 
+                          ? 'w-2 bg-primary/50'
+                          : 'w-2 bg-muted'
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* Feedback */}
@@ -401,9 +679,10 @@ const StoryGame = () => {
                 </div>
               )}
 
-              {/* Choices */}
-              {!showFeedback && !scenes[currentScene].isEnd && (
-                <div className="space-y-3">
+              {/* Choices - Only show after all frames */}
+              {!showFeedback && showChoices && !scenes[currentScene].isEnd && (
+                <div className="space-y-3 animate-fade-in">
+                  <p className="text-center text-muted-foreground mb-4">What will you do?</p>
                   {scenes[currentScene].choices.map((choice, index) => (
                     <Button
                       key={index}
@@ -415,6 +694,13 @@ const StoryGame = () => {
                     </Button>
                   ))}
                 </div>
+              )}
+              
+              {/* Waiting message */}
+              {!showFeedback && !showChoices && !scenes[currentScene].isEnd && (
+                <p className="text-center text-sm text-muted-foreground animate-pulse">
+                  Story continues...
+                </p>
               )}
 
               {/* End Scene */}
@@ -555,6 +841,8 @@ const StoryGame = () => {
                   onClick={() => {
                     setGamePhase("story");
                     setCurrentScene(0);
+                    setCurrentFrameIndex(0);
+                    setShowChoices(false);
                     setStoryScore(0);
                     setQuizScore(0);
                     setCurrentQuizQuestion(0);
