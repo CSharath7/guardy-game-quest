@@ -3,6 +3,7 @@ import { Navbar } from "@/components/Navbar";
 import { ChatBot } from "@/components/ChatBot";
 import { Play, Clock, Trophy, Star, Lock, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 
 const Games = () => {
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -263,7 +265,11 @@ const Games = () => {
                   </Button>
                 </div>
               ) : (
-                <Button variant="hero" className="w-full">
+                <Button 
+                  variant="hero" 
+                  className="w-full"
+                  onClick={() => game.id === 1 ? navigate("/games/story") : null}
+                >
                   <Play className="w-4 h-4 mr-2" />
                   Play Now
                 </Button>
