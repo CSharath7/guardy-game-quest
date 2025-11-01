@@ -4,7 +4,7 @@ import { ChatBot } from "@/components/ChatBot";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import { ArrowLeft, CheckCircle, XCircle, Trophy, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -49,8 +49,6 @@ const StoryGame = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [storyChoices, setStoryChoices] = useState<number[]>([]);
-  const [frameImages, setFrameImages] = useState<Record<string, string>>({});
-  const [loadingFrames, setLoadingFrames] = useState<Set<string>>(new Set());
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [showChoices, setShowChoices] = useState(false);
 
