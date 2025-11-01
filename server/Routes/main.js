@@ -57,7 +57,53 @@ router.post("/login", async (req, res) => {
   }
 });
  
+router.post("/game/complete", authenticateUser, async (req, res) => {
+  try {
+    // Correctly accessing userId attached by the middleware
+    const userId = req.user.userId;
+    const { gameId, score } = req.body;
 
+    if (!gameId || typeof score !== "number" || score < 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid gameId or score provided." });
+    }
+
+    // 1. Fetch User
+    const user = await User.findById(userId);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
+    }
+
+    // 2. Calculate Reward
+    // Award 1 Shield Coin for every 2 points scored.
+    const coinReward = Math.floor(score / 2);
+    // We can also treat the total score as XP earned
+    const xpReward = score;
+
+    // 3. Update user stats
+    user.shieldCoins += coinReward;
+    // NOTE: For a proper implementation, you would also update a separate XP field.
+    // Since only shieldCoins are requested for update, we update that.
+    await user.save();
+
+    // 4. Return new stats
+    res.status(200).json({
+      success: true,
+      message: `Game completed! You earned ${coinReward} Shield Coins and ${xpReward} XP.`,
+      newShieldCoins: user.shieldCoins,
+      reward: coinReward,
+      xpEarned: xpReward,
+    });
+  } catch (err) {
+    console.error("Game completion error:", err);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to process game completion." });
+  }
+});
 router.post("/signup", async (req, res) => {
   try {
     const { username, email, password } = req.body;
