@@ -64,6 +64,7 @@ router.post("/signup", async (req, res) => {
     if (!username || !email || !password) {
       return res.status(400).json({ message: "All fields are required." });
     }
+    console.log("Signup request received:", { username, email });
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res
@@ -121,7 +122,8 @@ router.get("/leaderboard",authenticateUser, async (req, res) => {
 router.get("/profile", authenticateUser, async (req, res) => {
   try {
     
-    const userId = req.userId;
+    const userId = req.user.userId;
+    console.log("Fetching profile for user ID:", userId);
     const user = await User.findById(userId).select('-password'); 
     if (!user) {
       return res.status(404).json({ message: "User not found." });

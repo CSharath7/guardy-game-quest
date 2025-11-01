@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ChatBot } from "@/components/ChatBot";
-import { AlertTriangle, ExternalLink, Search, Calendar, TrendingUp } from "lucide-react";
+import {
+  AlertTriangle,
+  ExternalLink,
+  Search,
+  Calendar,
+  TrendingUp,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,117 +17,134 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDistanceToNow } from "date-fns";
+
+// Interface for the fetched news article structure
+interface NewsArticle {
+  title: string;
+  description: string | null;
+  url: string;
+  urlToImage: string | null;
+  source: {
+    name: string;
+  };
+  publishedAt: string;
+}
+
+// Mock categories for filter UI (keeping the filter UI structure)
+const categories = [
+  { id: "all", name: "All News" },
+  { id: "phishing", name: "Phishing" },
+  { id: "crypto", name: "Cryptocurrency" },
+  { id: "payment", name: "Payment Fraud" },
+  { id: "social", name: "Social Engineering" },
+  { id: "malware", name: "Malware" },
+  { id: "business", name: "Business Fraud" },
+];
 
 const News = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const newsArticles = [
-    {
-      id: 1,
-      title: "New Phishing Campaign Targets Mobile Banking Users",
-      description: "Security researchers have identified a sophisticated phishing campaign targeting major banking apps. Attackers are using fake SMS messages claiming account suspension.",
-      source: "CyberSecurity Today",
-      category: "phishing",
-      severity: "high",
-      date: "2 hours ago",
-      readTime: "5 min read",
-      image: "🎣",
-    },
-    {
-      id: 2,
-      title: "Fake Crypto Investment Apps Removed from App Stores",
-      description: "Over 40 fraudulent cryptocurrency investment applications were discovered and removed. These apps promised high returns but stole user funds.",
-      source: "Fraud Alert Network",
-      category: "crypto",
-      severity: "high",
-      date: "5 hours ago",
-      readTime: "4 min read",
-      image: "₿",
-    },
-    {
-      id: 3,
-      title: "QR Code Scams Rise 300% in Restaurant Payments",
-      description: "Criminals are replacing legitimate restaurant QR codes with malicious ones, redirecting payments to their own accounts.",
-      source: "Payment Safety News",
-      category: "payment",
-      severity: "medium",
-      date: "1 day ago",
-      readTime: "6 min read",
-      image: "📷",
-    },
-    {
-      id: 4,
-      title: "AI Voice Cloning Used in Recent Social Engineering Attacks",
-      description: "Scammers are now using AI to clone voices of executives and family members to trick victims into transferring money.",
-      source: "Tech Security Report",
-      category: "social",
-      severity: "high",
-      date: "2 days ago",
-      readTime: "7 min read",
-      image: "🤖",
-    },
-    {
-      id: 5,
-      title: "Romance Scam Networks Exposed Across Multiple Platforms",
-      description: "International operation shuts down networks responsible for billions in losses through dating app scams.",
-      source: "Global Fraud Watch",
-      category: "social",
-      severity: "medium",
-      date: "3 days ago",
-      readTime: "8 min read",
-      image: "💔",
-    },
-    {
-      id: 6,
-      title: "New Malware Steals Banking Credentials Through Fake Updates",
-      description: "A new strain of malware disguises itself as system updates to steal banking credentials and two-factor authentication codes.",
-      source: "Malware Analysis Lab",
-      category: "malware",
-      severity: "high",
-      date: "4 days ago",
-      readTime: "5 min read",
-      image: "🦠",
-    },
-    {
-      id: 7,
-      title: "Invoice Fraud Costs Businesses $2.4 Billion This Quarter",
-      description: "Business email compromise and fake invoice schemes continue to target finance departments globally.",
-      source: "Corporate Security Today",
-      category: "business",
-      severity: "high",
-      date: "5 days ago",
-      readTime: "6 min read",
-      image: "💼",
-    },
-    {
-      id: 8,
-      title: "Fake Job Offer Scams Increase on Professional Networks",
-      description: "Scammers are creating fake recruiter profiles and job postings to steal personal information and money from job seekers.",
-      source: "Employment Fraud Alert",
-      category: "social",
-      severity: "medium",
-      date: "1 week ago",
-      readTime: "5 min read",
-      image: "👔",
-    },
-  ];
+  // Fetch news data on component mount
+  useEffect(() => {
+    setLoading(true);
+    fetch("http://localhost:5000/news")
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch news data from the server.");
+        }
+        return res.json();
+      })
+      .then((data: NewsArticle[]) => {
+        // Filter out articles missing essential data and set state
+        setNewsArticles(data.filter((article) => article.title && article.url));
+        setError(null);
+      })
+      .catch((err) => {
+        console.error("Error fetching news:", err);
+        setError(
+          err.message ||
+            "Failed to fetch news. Please check your network or server."
+        );
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
-  const categories = [
-    { id: "all", name: "All News" },
-    { id: "phishing", name: "Phishing" },
-    { id: "crypto", name: "Cryptocurrency" },
-    { id: "payment", name: "Payment Fraud" },
-    { id: "social", name: "Social Engineering" },
-    { id: "malware", name: "Malware" },
-    { id: "business", name: "Business Fraud" },
-  ];
+  // Helper to categorize/tag an article based on content keywords
+  const categorizeArticle = (article: NewsArticle) => {
+    const text = (
+      article.title +
+      " " +
+      (article.description || "")
+    ).toLowerCase();
+    if (text.includes("phishing") || text.includes("email")) return "phishing";
+    if (text.includes("crypto") || text.includes("bitcoin")) return "crypto";
+    if (
+      text.includes("payment") ||
+      text.includes("card") ||
+      text.includes("upi") ||
+      text.includes("qr code")
+    )
+      return "payment";
+    if (
+      text.includes("social engineering") ||
+      text.includes("voice") ||
+      text.includes("romance") ||
+      text.includes("scam")
+    )
+      return "social";
+    if (text.includes("malware") || text.includes("virus")) return "malware";
+    if (
+      text.includes("business") ||
+      text.includes("invoice") ||
+      text.includes("compromise")
+    )
+      return "business";
+    return "all";
+  };
 
+  // Simple severity logic based on keywords
+  const getArticleSeverity = (article: NewsArticle) => {
+    const text = (
+      article.title +
+      " " +
+      (article.description || "")
+    ).toLowerCase();
+    if (
+      text.includes("new campaign") ||
+      text.includes("critical") ||
+      text.includes("warning") ||
+      text.includes("high")
+    )
+      return "high";
+    return "medium";
+  };
+
+  // Helper function for consistent severity badge colors
   const getSeverityColor = (severity: string) => {
     return severity === "high"
       ? "bg-destructive/20 text-destructive border-destructive/30"
       : "bg-warning/20 text-warning border-warning/30";
   };
+
+  const filteredArticles = newsArticles.filter((article) => {
+    const matchesSearch =
+      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (article.description &&
+        article.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const articleCategory = categorizeArticle(article);
+    const matchesCategory =
+      selectedCategory === "all" || selectedCategory === articleCategory;
+
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="min-h-screen">
@@ -139,7 +162,7 @@ const News = () => {
           </p>
         </div>
 
-        {/* Stats */}
+        {/* Stats - Keeping the mock stats structure */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <div className="card-glass p-6 rounded-xl">
             <div className="flex items-center gap-4">
@@ -148,7 +171,9 @@ const News = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold">+34%</div>
-                <div className="text-sm text-muted-foreground">Scams this month</div>
+                <div className="text-sm text-muted-foreground">
+                  Scams this month
+                </div>
               </div>
             </div>
           </div>
@@ -159,7 +184,9 @@ const News = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold">12</div>
-                <div className="text-sm text-muted-foreground">Active threats</div>
+                <div className="text-sm text-muted-foreground">
+                  Active threats
+                </div>
               </div>
             </div>
           </div>
@@ -170,7 +197,9 @@ const News = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold">Today</div>
-                <div className="text-sm text-muted-foreground">Last updated</div>
+                <div className="text-sm text-muted-foreground">
+                  Last updated
+                </div>
               </div>
             </div>
           </div>
@@ -188,7 +217,10 @@ const News = () => {
                 className="pl-10"
               />
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select
+              value={selectedCategory}
+              onValueChange={setSelectedCategory}
+            >
               <SelectTrigger className="w-full md:w-64">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
@@ -213,52 +245,137 @@ const News = () => {
           </div>
         </div>
 
+        {/* Loading and Error States */}
+        {loading && (
+          <p className="text-center text-muted-foreground mt-10">
+            Fetching the latest fraud news...
+          </p>
+        )}
+
+        {error && !loading && (
+          <div className="text-center text-destructive p-8 card-glass rounded-xl mt-10">
+            <AlertTriangle className="w-8 h-8 mx-auto mb-4" />
+            <h3 className="font-bold text-xl mb-2">Error</h3>
+            <p>{error}</p>
+          </div>
+        )}
+
         {/* News Grid */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {newsArticles.map((article) => (
-            <div
-              key={article.id}
-              className="card-glass p-6 rounded-xl hover:scale-105 transition-transform cursor-pointer group"
-            >
-              {/* Header */}
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-16 h-16 bg-gradient-primary rounded-xl flex items-center justify-center text-3xl group-hover:shadow-glow transition-shadow flex-shrink-0">
-                  {article.image}
-                </div>
-                <div className="flex-1">
-                  <div className="flex gap-2 mb-2">
-                    <Badge className={getSeverityColor(article.severity)}>
-                      {article.severity.toUpperCase()}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {article.category}
-                    </Badge>
+        {!loading && !error && (
+          <div className="grid md:grid-cols-2 gap-6">
+            {filteredArticles.map((article, index) => {
+              const category = categorizeArticle(article);
+              const severity = getArticleSeverity(article);
+              // Simple calculation for read time
+              const readTime =
+                Math.ceil((article.description?.length || 500) / 1000) * 2;
+              const date = new Date(article.publishedAt);
+              const timeAgo = formatDistanceToNow(date, { addSuffix: true });
+
+              // Fallback for missing image
+              const imageUrl =
+                article.urlToImage ||
+                "https://via.placeholder.com/400x200?text=FraudGuard+News";
+
+              return (
+                <a
+                  key={index}
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="card-glass p-6 rounded-xl hover:scale-[1.01] transition-transform cursor-pointer group"
+                >
+                  {/* Header */}
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-16 h-16 bg-muted/20 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt={article.title}
+                        className="w-full h-full object-cover transition-opacity group-hover:opacity-80"
+                        onError={(e) => {
+                          // Fallback to placeholder emoji if image fails
+                          e.currentTarget.src =
+                            "https://via.placeholder.com/64x64?text=📰";
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.className =
+                            "w-full h-full object-contain p-2";
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex gap-2 mb-2 flex-wrap">
+                        <Badge className={getSeverityColor(severity)}>
+                          {severity.toUpperCase()} ALERT
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {category.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                        {article.title}
+                      </h3>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
-                    {article.title}
+
+                  {/* Description */}
+                  <p className="text-muted-foreground mb-4 line-clamp-3">
+                    {article.description || "No description available."}
+                  </p>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between text-sm border-t border-border pt-4">
+                    <div className="flex items-center gap-4 text-muted-foreground">
+                      <span>{article.source.name}</span>
+                      <span>•</span>
+                      <span>{timeAgo}</span>
+                      <span>•</span>
+                      <span>{readTime} min read</span>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-primary group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </a>
+              );
+            })}
+
+            {/* No Results Message */}
+            {filteredArticles.length === 0 && searchQuery.length > 0 && (
+              <div className="text-center md:col-span-2 text-muted-foreground p-8 card-glass rounded-xl">
+                <Search className="w-8 h-8 mx-auto mb-4" />
+                <h3 className="font-bold text-xl mb-2">No Results Found</h3>
+                <p>Try adjusting your search query or filters.</p>
+              </div>
+            )}
+
+            {filteredArticles.length === 0 &&
+              !loading &&
+              !error &&
+              searchQuery.length === 0 &&
+              newsArticles.length > 0 &&
+              selectedCategory !== "all" && (
+                <div className="text-center md:col-span-2 text-muted-foreground p-8 card-glass rounded-xl">
+                  <h3 className="font-bold text-xl mb-2">
+                    No Articles in This Category
                   </h3>
+                  <p>Try selecting "All News" to see more articles.</p>
                 </div>
-              </div>
+              )}
 
-              {/* Description */}
-              <p className="text-muted-foreground mb-4 line-clamp-3">
-                {article.description}
-              </p>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between text-sm border-t border-border pt-4">
-                <div className="flex items-center gap-4 text-muted-foreground">
-                  <span>{article.source}</span>
-                  <span>•</span>
-                  <span>{article.date}</span>
-                  <span>•</span>
-                  <span>{article.readTime}</span>
+            {filteredArticles.length === 0 &&
+              !loading &&
+              !error &&
+              newsArticles.length === 0 &&
+              searchQuery.length === 0 &&
+              selectedCategory === "all" && (
+                <div className="text-center md:col-span-2 text-muted-foreground p-8 card-glass rounded-xl">
+                  <h3 className="font-bold text-xl mb-2">No Articles Found</h3>
+                  <p>
+                    The news source did not return any articles for the current
+                    query on your server.
+                  </p>
                 </div>
-                <ExternalLink className="w-4 h-4 text-primary group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          ))}
-        </div>
+              )}
+          </div>
+        )}
 
         {/* Load More */}
         <div className="text-center mt-8">

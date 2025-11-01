@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
+const API_BASE_URL = "http://localhost:5000";
+
 const Signup = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -13,9 +15,11 @@ const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (password !== confirmPassword) {
       toast({
         title: "Passwords don't match",
@@ -24,12 +28,56 @@ const Signup = () => {
       });
       return;
     }
-    // Mock signup - in real app would create account
-    toast({
-      title: "Account created!",
-      description: "Welcome to FraudGuard",
-    });
-    navigate("/dashboard");
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: name, // Mapping frontend 'name' to backend 'username'
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage =
+          data.message ||
+          data.error ||
+          "An unexpected error occurred during signup.";
+        toast({
+          title: "Signup Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Successful signup
+      toast({
+        title: "Account created!",
+        description: "Welcome to FraudGuard! Please log in.",
+      });
+
+      // Navigate to login page after successful signup
+      navigate("/login");
+    } catch (error) {
+      console.error("Signup network error:", error);
+      toast({
+        title: "Network Error",
+        description:
+          "Could not connect to the server. Please ensure the backend is running.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,14 +93,16 @@ const Signup = () => {
         <div className="card-glass p-8 rounded-2xl space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Create Account</h1>
-            <p className="text-muted-foreground">Start your fraud prevention journey</p>
+            <p className="text-muted-foreground">
+              Start your fraud prevention journey
+            </p>
           </div>
 
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name" className="flex items-center gap-2">
                 <User className="w-4 h-4" />
-                Full Name
+                Username
               </Label>
               <Input
                 id="name"
@@ -98,7 +148,10 @@ const Signup = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="flex items-center gap-2">
+              <Label
+                htmlFor="confirmPassword"
+                className="flex items-center gap-2"
+              >
                 <Lock className="w-4 h-4" />
                 Confirm Password
               </Label>
@@ -113,8 +166,14 @@ const Signup = () => {
               />
             </div>
 
-            <Button type="submit" variant="hero" className="w-full" size="lg">
-              Create Account
+            <Button
+              type="submit"
+              variant="hero"
+              className="w-full"
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
 
@@ -127,7 +186,12 @@ const Signup = () => {
             </div>
           </div>
 
-          <Button variant="outline" className="w-full" size="lg">
+          <Button
+            variant="outline"
+            className="w-full"
+            size="lg"
+            disabled={loading}
+          >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -151,7 +215,10 @@ const Signup = () => {
 
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/login" className="text-primary font-medium hover:underline">
+            <Link
+              to="/login"
+              className="text-primary font-medium hover:underline"
+            >
               Sign in
             </Link>
           </p>

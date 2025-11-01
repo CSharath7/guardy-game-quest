@@ -12,6 +12,7 @@ import Games from "./pages/Games";
 import News from "./pages/News";
 import StoryGame from "./pages/StoryGame";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -25,11 +26,14 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/games" element={<Games />} />
-          <Route path="/games/story" element={<StoryGame />} />
-          <Route path="/news" element={<News />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/games" element={<Games />} />
+            <Route path="/games/story" element={<StoryGame />} />
+            <Route path="/news" element={<News />} />
+          </Route>
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

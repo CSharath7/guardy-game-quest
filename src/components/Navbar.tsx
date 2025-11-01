@@ -1,5 +1,13 @@
-import { Link, useLocation } from "react-router-dom";
-import { Shield, Home, Gamepad2, User, LogOut, Bell, Newspaper } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Shield,
+  Home,
+  Gamepad2,
+  User,
+  LogOut,
+  Bell,
+  Newspaper,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,11 +17,54 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 export const Navbar = () => {
   const location = useLocation();
-  
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
   const isActive = (path: string) => location.pathname === path;
+
+  // Function to load and parse user data from localStorage
+  const getUserData = () => {
+    const userDataString = localStorage.getItem("userData");
+    if (userDataString) {
+      try {
+        return JSON.parse(userDataString);
+      } catch (e) {
+        console.error("Error parsing user data from localStorage:", e);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const user = getUserData();
+  const username = user?.username || "Guest";
+  const initials =
+    username
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase() || "AR";
+
+  // Function to handle the actual logout process
+  const handleLogout = () => {
+    // 1. Clear authentication data from local storage
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userData");
+
+    // 2. Display success message
+    toast({
+      title: "Logged out!",
+      description: "You have been successfully signed out.",
+    });
+
+    // 3. Redirect to the landing page
+    navigate("/");
+  };
 
   return (
     <nav className="border-b border-border bg-card/50 backdrop-blur-lg sticky top-0 z-50">
@@ -27,7 +78,7 @@ export const Navbar = () => {
         {/* Navigation Links */}
         <div className="flex items-center gap-2">
           <Link to="/dashboard">
-            <Button 
+            <Button
               variant={isActive("/dashboard") ? "default" : "ghost"}
               className="gap-2"
             >
@@ -36,7 +87,7 @@ export const Navbar = () => {
             </Button>
           </Link>
           <Link to="/games">
-            <Button 
+            <Button
               variant={isActive("/games") ? "default" : "ghost"}
               className="gap-2"
             >
@@ -45,7 +96,7 @@ export const Navbar = () => {
             </Button>
           </Link>
           <Link to="/news">
-            <Button 
+            <Button
               variant={isActive("/news") ? "default" : "ghost"}
               className="gap-2"
             >
@@ -54,7 +105,7 @@ export const Navbar = () => {
             </Button>
           </Link>
           <Link to="/profile">
-            <Button 
+            <Button
               variant={isActive("/profile") ? "default" : "ghost"}
               className="gap-2"
             >
@@ -75,12 +126,13 @@ export const Navbar = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
                 <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center font-bold text-sm">
-                  AR
+                  {/* Display user initials in avatar */}
+                  {initials}
                 </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>My Account ({username})</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link to="/profile" className="cursor-pointer">
@@ -89,11 +141,12 @@ export const Navbar = () => {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/" className="cursor-pointer text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </Link>
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="cursor-pointer text-destructive"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

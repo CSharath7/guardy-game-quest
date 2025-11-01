@@ -4,22 +4,84 @@ import { Shield, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+
+const API_BASE_URL = "http://localhost:5000";
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login - in real app would authenticate
-    toast({
-      title: "Welcome back!",
-      description: "Successfully logged in",
-    });
-    navigate("/dashboard");
+    setLoading(true);
+
+    try {
+      // API call to backend /login route
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          rememberMe,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage =
+          data.message ||
+          data.error ||
+          "An unexpected error occurred during login.";
+        toast({
+          title: "Login Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // ----------------------------------------------------
+      // START: Local Storage Implementation
+      // ----------------------------------------------------
+      // Store the JWT token
+      if (data.token) {
+        localStorage.setItem("authToken", data.token);
+      }
+      // Store essential user information
+      if (data.user) {
+        localStorage.setItem("userData", JSON.stringify(data.user));
+      }
+      // ----------------------------------------------------
+      // END: Local Storage Implementation
+      // ----------------------------------------------------
+
+      // Successful login
+      toast({
+        title: "Welcome back!",
+        description: `Successfully logged in as ${data.user.username}.`,
+      });
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Login network error:", error);
+      toast({
+        title: "Network Error",
+        description:
+          "Could not connect to the server. Please ensure the backend is running on port 5000.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,7 +97,9 @@ const Login = () => {
         <div className="card-glass p-8 rounded-2xl space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Welcome Back</h1>
-            <p className="text-muted-foreground">Sign in to continue your training</p>
+            <p className="text-muted-foreground">
+              Sign in to continue your training
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -52,6 +116,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="bg-muted/50"
+                disabled={loading}
               />
             </div>
 
@@ -68,17 +133,38 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="bg-muted/50"
+                disabled={loading}
               />
             </div>
 
-            <div className="flex justify-end">
-              <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                  disabled={loading}
+                />
+                <Label htmlFor="rememberMe" className="font-normal">
+                  Remember me
+                </Label>
+              </div>
+              <Link
+                to="/forgot-password"
+                className="text-sm text-primary hover:underline"
+              >
                 Forgot password?
               </Link>
             </div>
 
-            <Button type="submit" variant="hero" className="w-full" size="lg">
-              Sign In
+            <Button
+              type="submit"
+              variant="hero"
+              className="w-full"
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
 
@@ -91,7 +177,12 @@ const Login = () => {
             </div>
           </div>
 
-          <Button variant="outline" className="w-full" size="lg">
+          <Button
+            variant="outline"
+            className="w-full"
+            size="lg"
+            disabled={loading}
+          >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -115,7 +206,10 @@ const Login = () => {
 
           <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:underline">
+            <Link
+              to="/signup"
+              className="text-primary font-medium hover:underline"
+            >
               Sign up
             </Link>
           </p>

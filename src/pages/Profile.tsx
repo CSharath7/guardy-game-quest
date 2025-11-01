@@ -2,58 +2,150 @@ import { Navbar } from "@/components/Navbar";
 import { ChatBot } from "@/components/ChatBot";
 import {
   Trophy,
-  Award,
-  Star,
   Flame,
   Target,
-  TrendingUp,
   Calendar,
-  CheckCircle2,
-  Lock,
   Shield,
+  User,
+  Mail,
+  AlertTriangle,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+
+const API_BASE_URL = "http://localhost:5000";
+
+// Interface reflecting the data structure from the /profile endpoint
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  currentLevel: number;
+  shieldCoins: number;
+  currentStreak: number;
+  registered: string;
+  lastLogin: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const Profile = () => {
-  const userStats = {
-    name: "Alex Rivera",
-    username: "@alexrivera",
-    level: 12,
-    xp: 8400,
-    xpToNext: 10000,
-    points: 15240,
-    streak: 7,
-    rank: 234,
-    gamesPlayed: 156,
-    accuracy: 87,
-    joinedDate: "Jan 2024",
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch user profile data
+  useEffect(() => {
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      setError("Authentication token missing. Please log in.");
+      setLoading(false);
+      return;
+    }
+
+    const fetchProfile = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`${API_BASE_URL}/profile`, {
+          method: "GET",
+          headers: {
+            Authorization: authToken,
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to fetch profile data.");
+        } 
+
+        setProfile(data.user);
+      } catch (err: any) {
+        console.error("Profile fetch error:", err.message);
+        setError(err.message || "Could not retrieve profile data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  // Helper functions for UI representation
+  const getAvatarInitials = (username: string) => {
+    return (
+      username
+        .split(/\s+/)
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .substring(0, 2) || "AR"
+    );
   };
 
-  const achievements = [
-    { icon: Trophy, name: "First Win", desc: "Complete your first scenario", unlocked: true, color: "text-warning" },
-    { icon: Flame, name: "Hot Streak", desc: "7 day login streak", unlocked: true, color: "text-destructive" },
-    { icon: Target, name: "Sharp Eye", desc: "90% accuracy on 10 games", unlocked: true, color: "text-success" },
-    { icon: Star, name: "Rising Star", desc: "Reach level 10", unlocked: true, color: "text-primary" },
-    { icon: Shield, name: "Fraud Buster", desc: "Complete 50 scenarios", unlocked: true, color: "text-secondary" },
-    { icon: Award, name: "Top 100", desc: "Rank in top 100", unlocked: false, color: "text-muted" },
-    { icon: TrendingUp, name: "Speed Demon", desc: "Complete game in under 2 min", unlocked: false, color: "text-muted" },
-    { icon: CheckCircle2, name: "Perfect Score", desc: "100% accuracy game", unlocked: false, color: "text-muted" },
-  ];
+  const formatJoinedDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return "Invalid Date";
+    }
+  };
 
-  const recentActivity = [
-    { game: "Phishing Email Detective", score: 950, xp: 100, date: "2 hours ago", result: "passed" },
-    { game: "Fake Website Spotter", score: 1200, xp: 200, date: "1 day ago", result: "passed" },
-    { game: "Social Engineering Defense", score: 800, xp: 150, date: "2 days ago", result: "failed" },
-    { game: "Payment Scam Identifier", score: 1100, xp: 180, date: "3 days ago", result: "passed" },
-  ];
+  // Mock XP calculation based on currentLevel (Aligning with Dashboard logic for UX)
+  const currentLevel = profile?.currentLevel || 1;
+  const xp = currentLevel * 8400;
+  const xpToNext = (currentLevel + 1) * 10000;
+  const percentage = (xp / xpToNext) * 100;
 
-  const categories = [
-    { name: "Phishing Detection", mastery: 92, games: 45 },
-    { name: "Fake Websites", mastery: 85, games: 38 },
-    { name: "Social Engineering", mastery: 78, games: 32 },
-    { name: "Payment Fraud", mastery: 88, games: 41 },
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-6 py-8 flex justify-center items-center h-[50vh]">
+          <p className="text-xl text-muted-foreground">
+            Loading user profile...
+          </p>
+        </div>
+        <ChatBot />
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-6 py-8 text-center max-w-xl">
+          <div className="card-glass p-8 rounded-2xl">
+            <AlertTriangle className="w-12 h-12 mx-auto text-destructive mb-4" />
+            <h1 className="text-3xl font-bold mb-2 text-destructive">
+              Profile Error
+            </h1>
+            <p className="text-muted-foreground mb-4">
+              {error ||
+                "Profile data could not be loaded. Please ensure you are logged in."}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() =>
+                localStorage.clear() || window.location.replace("/login")
+              }
+            >
+              Go to Login
+            </Button>
+          </div>
+        </div>
+        <ChatBot />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -66,168 +158,70 @@ const Profile = () => {
             {/* Avatar */}
             <div className="relative">
               <div className="w-32 h-32 bg-gradient-primary rounded-2xl flex items-center justify-center text-5xl font-bold shadow-glow">
-                AR
+                {getAvatarInitials(profile.username)}
               </div>
               <div className="absolute -bottom-2 -right-2 bg-card border-4 border-background rounded-full px-3 py-1 font-bold text-sm">
-                Lvl {userStats.level}
+                Lvl {profile.currentLevel}
               </div>
             </div>
 
             {/* User Info */}
             <div className="flex-1">
-              <h1 className="text-4xl font-bold mb-2">{userStats.name}</h1>
-              <p className="text-muted-foreground mb-4">{userStats.username} • Joined {userStats.joinedDate}</p>
+              <h1 className="text-4xl font-bold mb-2">{profile.username}</h1>
+              <div className="flex items-center gap-4 text-muted-foreground mb-4">
+                <div className="flex items-center gap-1">
+                  <Mail className="w-4 h-4" />
+                  <p className="text-sm">{profile.email}</p>
+                </div>
+                <span>•</span>
+                <p className="text-sm">
+                  Joined {formatJoinedDate(profile.registered)}
+                </p>
+              </div>
 
               {/* Level Progress */}
               <div className="space-y-2 mb-6 max-w-md">
                 <div className="flex justify-between text-sm">
-                  <span className="font-medium">Level {userStats.level}</span>
-                  <span className="text-muted-foreground">{userStats.xp} / {userStats.xpToNext} XP</span>
+                  <span className="font-medium">
+                    Level {profile.currentLevel}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {xp} / {xpToNext} XP
+                  </span>
                 </div>
-                <Progress value={(userStats.xp / userStats.xpToNext) * 100} className="h-3" />
-                <p className="text-xs text-muted-foreground">{userStats.xpToNext - userStats.xp} XP to level {userStats.level + 1}</p>
-              </div>
-
-              {/* Quick Stats */}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{userStats.points.toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground">Total Points</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-secondary">#{userStats.rank}</div>
-                  <div className="text-xs text-muted-foreground">Global Rank</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-success">{userStats.accuracy}%</div>
-                  <div className="text-xs text-muted-foreground">Accuracy</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-warning">{userStats.streak}</div>
-                  <div className="text-xs text-muted-foreground">Day Streak</div>
-                </div>
+                <Progress value={percentage} className="h-3" />
+                <p className="text-xs text-muted-foreground">
+                  {xpToNext - xp} XP to level {profile.currentLevel + 1}
+                </p>
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Actions (Kept for completeness) */}
             <div className="space-y-2">
               <Button variant="hero">Edit Profile</Button>
-              <Button variant="outline" className="w-full">Share Profile</Button>
+              <Button variant="outline" className="w-full">
+                Share Profile
+              </Button>
             </div>
           </div>
         </div>
 
+        {/* --- STATS SUMMARY (LEFT COLUMN REMOVED, STATS MOVED TO FILL SPACE) --- */}
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left Column - 2/3 */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Achievements */}
+            {/* Stats Summary - Based on live data */}
             <div className="card-glass p-6 rounded-xl">
-              <div className="flex items-center gap-2 mb-6">
-                <Award className="w-6 h-6 text-warning" />
-                <h2 className="text-2xl font-bold">Achievements</h2>
-                <span className="ml-auto text-sm text-muted-foreground">
-                  {achievements.filter(a => a.unlocked).length} / {achievements.length}
-                </span>
-              </div>
+              <h2 className="text-2xl font-bold mb-6">Personal Statistics</h2>
 
-              <div className="grid grid-cols-4 gap-4">
-                {achievements.map((achievement, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-4 rounded-lg text-center transition-all cursor-pointer ${
-                      achievement.unlocked
-                        ? "card-glass hover:scale-105"
-                        : "bg-muted/20 opacity-50 cursor-not-allowed"
-                    }`}
-                  >
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 ${
-                        achievement.unlocked ? "bg-gradient-primary shadow-glow" : "bg-muted"
-                      }`}
-                    >
-                      <achievement.icon className={`w-6 h-6 ${achievement.unlocked ? "text-primary-foreground" : "text-muted-foreground"}`} />
-                    </div>
-                    <h3 className="font-bold text-sm mb-1">{achievement.name}</h3>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{achievement.desc}</p>
-                    {!achievement.unlocked && <Lock className="w-4 h-4 mx-auto mt-2 text-muted-foreground" />}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Category Mastery */}
-            <div className="card-glass p-6 rounded-xl">
-              <h2 className="text-2xl font-bold mb-6">Category Mastery</h2>
-
-              <div className="space-y-4">
-                {categories.map((category, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-bold">{category.name}</h3>
-                        <p className="text-xs text-muted-foreground">{category.games} games completed</p>
-                      </div>
-                      <span className="text-lg font-bold text-primary">{category.mastery}%</span>
-                    </div>
-                    <Progress value={category.mastery} className="h-2" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="card-glass p-6 rounded-xl">
-              <h2 className="text-2xl font-bold mb-6">Recent Activity</h2>
-
-              <div className="space-y-3">
-                {recentActivity.map((activity, idx) => (
-                  <div key={idx} className="flex items-center gap-4 p-4 bg-muted/20 rounded-lg">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        activity.result === "passed" ? "bg-success/20" : "bg-destructive/20"
-                      }`}
-                    >
-                      {activity.result === "passed" ? (
-                        <CheckCircle2 className="w-5 h-5 text-success" />
-                      ) : (
-                        <X className="w-5 h-5 text-destructive" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold">{activity.game}</h3>
-                      <p className="text-xs text-muted-foreground">{activity.date}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold">{activity.score}</div>
-                      <div className="text-xs text-primary">+{activity.xp} XP</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - 1/3 */}
-          <div className="space-y-6">
-            {/* Stats Summary */}
-            <div className="card-glass p-6 rounded-xl">
-              <h2 className="text-xl font-bold mb-6">Statistics</h2>
-
-              <div className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
                 <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <Gamepad2 className="w-5 h-5 text-primary" />
-                    <span className="text-sm">Games Played</span>
+                    <Trophy className="w-5 h-5 text-primary" />
+                    <span className="text-sm">Shield Coins</span>
                   </div>
-                  <span className="font-bold">{userStats.gamesPlayed}</span>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Target className="w-5 h-5 text-success" />
-                    <span className="text-sm">Accuracy</span>
-                  </div>
-                  <span className="font-bold text-success">{userStats.accuracy}%</span>
+                  <span className="font-bold text-primary">
+                    {profile.shieldCoins.toLocaleString()}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
@@ -235,7 +229,19 @@ const Profile = () => {
                     <Flame className="w-5 h-5 text-warning" />
                     <span className="text-sm">Current Streak</span>
                   </div>
-                  <span className="font-bold text-warning">{userStats.streak} days</span>
+                  <span className="font-bold text-warning">
+                    {profile.currentStreak} days
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Target className="w-5 h-5 text-success" />
+                    <span className="text-sm">Current Level</span>
+                  </div>
+                  <span className="font-bold text-success">
+                    {profile.currentLevel}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
@@ -243,12 +249,28 @@ const Profile = () => {
                     <Calendar className="w-5 h-5 text-secondary" />
                     <span className="text-sm">Member Since</span>
                   </div>
-                  <span className="font-bold">{userStats.joinedDate}</span>
+                  <span className="font-bold">
+                    {formatJoinedDate(profile.registered)}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Daily Challenge */}
+            {/* Placeholder for future growth or complex statistics */}
+            <div className="card-glass p-6 rounded-xl">
+              <h2 className="text-2xl font-bold mb-4">
+                Mastery and Performance
+              </h2>
+              <p className="text-muted-foreground">
+                Detailed performance metrics (Accuracy, Category Mastery, Recent
+                Activity) will be displayed here once game data integration is
+                complete.
+              </p>
+            </div>
+          </div>
+
+          {/* Right Column - 1/3 (Kept for layout structure) */}
+          <div className="space-y-6 lg:col-span-1">
             <div className="card-glass p-6 rounded-xl bg-gradient-primary/10 border border-primary/30">
               <div className="flex items-center gap-2 mb-4">
                 <Calendar className="w-5 h-5 text-primary" />
@@ -257,7 +279,9 @@ const Profile = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 Complete today's challenge for bonus XP!
               </p>
-              <Button variant="hero" className="w-full">Start Challenge</Button>
+              <Button variant="hero" className="w-full">
+                Start Challenge
+              </Button>
             </div>
           </div>
         </div>
@@ -270,6 +294,7 @@ const Profile = () => {
 
 export default Profile;
 
+// Kept dummy functions to avoid import errors if they are used elsewhere (they aren't here, but good practice)
 function X(props: any) {
   return (
     <svg
