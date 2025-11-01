@@ -55,22 +55,23 @@ const StoryGame = () => {
   // Preload all story images
   const storyImages = import.meta.glob('@/assets/story/*.png', { eager: true, as: 'url' });
 
-  // Auto-advance frames or show choices
-  useEffect(() => {
-    if (gamePhase !== "story" || showFeedback) return;
-
+  // Navigation handlers
+  const handleNextFrame = () => {
     const scene = scenes[currentScene];
     if (currentFrameIndex < scene.frames.length - 1) {
-      // Still more frames to show
-      const timer = setTimeout(() => {
-        setCurrentFrameIndex(currentFrameIndex + 1);
-      }, 3000); // 3 seconds per frame
-      return () => clearTimeout(timer);
+      setCurrentFrameIndex(currentFrameIndex + 1);
     } else {
       // All frames shown, show choices
       setShowChoices(true);
     }
-  }, [currentFrameIndex, currentScene, gamePhase, showFeedback]);
+  };
+
+  const handlePrevFrame = () => {
+    if (currentFrameIndex > 0) {
+      setCurrentFrameIndex(currentFrameIndex - 1);
+      setShowChoices(false);
+    }
+  };
 
   const scenes: Scene[] = [
     {
@@ -589,6 +590,35 @@ const StoryGame = () => {
                     <p className="text-lg leading-relaxed">
                       {scenes[currentScene].frames[currentFrameIndex]?.dialogue}
                     </p>
+                    
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-between items-center mt-6 pt-4 border-t border-border/50">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrevFrame}
+                        disabled={currentFrameIndex === 0}
+                        className="gap-2"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                      </Button>
+                      
+                      <span className="text-sm text-muted-foreground">
+                        Frame {currentFrameIndex + 1} / {scenes[currentScene].frames.length}
+                      </span>
+                      
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleNextFrame}
+                        disabled={showChoices}
+                        className="gap-2"
+                      >
+                        {currentFrameIndex < scenes[currentScene].frames.length - 1 ? 'Next' : 'Continue'}
+                        <ArrowLeft className="h-4 w-4 rotate-180" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 
@@ -633,12 +663,6 @@ const StoryGame = () => {
                 </div>
               )}
               
-              {/* Waiting message */}
-              {!showFeedback && !showChoices && !scenes[currentScene].isEnd && (
-                <p className="text-center text-sm text-muted-foreground animate-pulse">
-                  Story continues...
-                </p>
-              )}
 
               {/* End Scene */}
               {scenes[currentScene].isEnd && !showFeedback && (
