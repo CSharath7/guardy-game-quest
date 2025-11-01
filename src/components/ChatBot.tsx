@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageSquare, X, Send, Shield, AlertCircle, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showIntroBubble, setShowIntroBubble] = useState(false);
+  const [introDismissed, setIntroDismissed] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: "bot",
@@ -12,6 +14,16 @@ export const ChatBot = () => {
     },
   ]);
   const [input, setInput] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isOpen && !introDismissed) {
+        setShowIntroBubble(true);
+      }
+    }, 2000); // Show after 2 seconds
+
+    return () => clearTimeout(timer);
+  }, [isOpen, introDismissed]);
 
   const quickActions = [
     { icon: "🎣", text: "Identify phishing emails", query: "How can I identify phishing emails?" },
@@ -57,11 +69,42 @@ export const ChatBot = () => {
     return "I'm here to help you stay safe from fraud! I can answer questions about:\n\n🎯 Identifying phishing attempts\n💳 Secure payment practices\n🔒 Account protection\n⚠️ Latest scam tactics\n📚 Fraud prevention tips\n\nWhat specific topic would you like to explore?";
   };
 
+  const toggleChat = () => {
+    setIsOpen(!isOpen);
+    setShowIntroBubble(false); // Always hide bubble when toggling
+    setIntroDismissed(true); // Don't show again this session
+  };
+
+  const dismissIntro = () => {
+    setShowIntroBubble(false);
+    setIntroDismissed(true);
+  };
+
   return (
     <>
+      {/* Intro Bubble */}
+      {showIntroBubble && !isOpen && !introDismissed && (
+        <div className="fixed bottom-24 right-6 w-80 card-glass rounded-2xl shadow-card z-50 p-4 animate-float border-2 border-primary/50 shadow-glow animate-in fade-in zoom-in-95 slide-in-from-bottom-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center backdrop-blur flex-shrink-0">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="text-base font-semibold">Hi there! 👋</p>
+              <p className="text-sm text-muted-foreground">
+                Got questions about fraud? Ask me anything!
+              </p>
+            </div>
+            <button onClick={dismissIntro} className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Chat Toggle Button */}
       <Button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleChat}
         className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-glow z-50"
         variant="hero"
         size="icon"
@@ -71,7 +114,7 @@ export const ChatBot = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[600px] card-glass rounded-2xl shadow-card flex flex-col z-50">
+        <div className="fixed bottom-24 right-6 w-96 h-[600px] card-glass rounded-2xl shadow-card flex flex-col z-50 animate-in fade-in zoom-in-95 slide-in-from-bottom-4">
           {/* Header */}
           <div className="p-4 border-b border-border flex items-center gap-3 bg-gradient-primary rounded-t-2xl">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur">

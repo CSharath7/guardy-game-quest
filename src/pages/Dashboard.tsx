@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Trophy,
   Target,
@@ -40,6 +40,7 @@ interface LeaderboardEntry {
 // --- COMPONENT ---
 
 const Dashboard = () => {
+  const navigate = useNavigate(); // Added for navigation
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
@@ -122,7 +123,10 @@ const Dashboard = () => {
       }
     };
 
-    fetchLeaderboard();
+    // Only fetch leaderboard if we have user stats to find the rank for
+    if (userStats?.username) {
+        fetchLeaderboard();
+    }
   }, [userStats?.username]); // Re-fetch only when the username loads
 
   // --- MOCK/STATIC DATA (Kept for content not covered by the API) ---
@@ -173,29 +177,46 @@ const Dashboard = () => {
 
   const quickGames = [
     {
+      id: "game-1",
       title: "Phishing Email Detective",
       difficulty: "Easy",
       xp: 100,
       icon: "🎣",
       color: "bg-primary/20",
+      path: "/games/story", // Added path for redirection
     },
     {
+      id: "game-2",
       title: "Fake Website Spotter",
       difficulty: "Medium",
       xp: 200,
       icon: "🌐",
       color: "bg-secondary/20",
+      path: null, // No path yet
     },
     {
+      id: "game-3",
       title: "Social Engineering Defense",
       difficulty: "Hard",
       xp: 300,
       icon: "🎭",
       color: "bg-destructive/20",
+      path: null, // No path yet
     },
   ];
 
   // --- RENDER HELPERS ---
+
+  // Added navigation handler
+  const handleGameClick = (path: string | null) => {
+    if (path) {
+      navigate(path);
+    }
+    // Optionally, you could show a toast or alert if path is null
+    // else {
+    //   console.log("This game is not available yet.");
+    // }
+  };
 
   const currentStats = userStats || {
     username: "Loading...",
@@ -219,8 +240,6 @@ const Dashboard = () => {
     );
   };
 
-  const progressBarValue = (currentStats.xp / currentStats.xpToNext) * 100;
-
   // --------------------------------------------------------------------------------
 
   return (
@@ -228,68 +247,57 @@ const Dashboard = () => {
       <Navbar />
 
       <div className="container mx-auto px-6 py-8">
-        <div className="flex gap-6">
+        
+        {/* Simplified Welcome */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">
+            Welcome back, {currentStats.username}!
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Select a game to start learning or check out the latest news.
+          </p>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-6">
           {/* Main Content - 75% */}
           <div className="flex-1 space-y-6">
-            {/* Welcome & Stats */}
+            
+            {/* Quick Play Games (MOVED TO TOP) */}
             <div className="card-glass p-6 rounded-xl">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h1 className="text-3xl font-bold mb-2">
-                    Welcome back, {currentStats.username}!
-                  </h1>
-                  <p className="text-muted-foreground">
-                    Ready to sharpen your fraud detection skills?
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground">Your Rank</div>
-                  <div className="text-3xl font-bold text-primary">
-                    {currentStats.rank === 0 ? "#..." : `#${currentStats.rank}`}
-                  </div>
-                </div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Quick Play</h2>
+                <Link to="/games">
+                  <Button variant="outline" size="sm">
+                    View All Games
+                  </Button>
+                </Link>
               </div>
 
-              {/* Level Progress */}
-              <div className="space-y-2 mb-6">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">
-                    Level {currentStats.currentLevel}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {currentStats.xp} / {currentStats.xpToNext} XP
-                  </span>
-                </div>
-                <Progress value={progressBarValue} className="h-3" />
-              </div>
-
-              {/* Stats Grid - Populated from localStorage */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gradient-primary p-4 rounded-lg text-center">
-                  <Trophy className="w-8 h-8 mx-auto mb-2 text-primary-foreground" />
-                  <div className="text-2xl font-bold text-primary-foreground">
-                    {currentStats.shieldCoins.toLocaleString()}
+              <div className="grid md:grid-cols-3 gap-4">
+                {quickGames.map((game) => (
+                  <div
+                    key={game.id}
+                    className="card-glass p-6 rounded-lg hover:scale-105 transition-transform cursor-pointer group flex flex-col"
+                    onClick={() => handleGameClick(game.path)} // Added onClick handler
+                  >
+                    <div
+                      className={`w-16 h-16 ${game.color} rounded-full flex items-center justify-center text-3xl mb-4 mx-auto group-hover:shadow-glow transition-shadow`}
+                    >
+                      {game.icon}
+                    </div>
+                    <h3 className="font-bold text-center mb-2">{game.title}</h3>
+                    <div className="flex justify-between text-sm text-muted-foreground mb-4">
+                      <span>{game.difficulty}</span>
+                      <span className="text-primary font-medium">
+                        +{game.xp} XP
+                      </span>
+                    </div>
+                    <Button variant="hero" size="sm" className="w-full mt-auto">
+                      <Play className="w-4 h-4 mr-2" />
+                      Play Now
+                    </Button>
                   </div>
-                  <div className="text-sm text-primary-foreground/80">
-                    Shield Coins
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-warning/20 to-warning/10 p-4 rounded-lg text-center border border-warning/30">
-                  <Flame className="w-8 h-8 mx-auto mb-2 text-warning" />
-                  <div className="text-2xl font-bold">
-                    {currentStats.currentStreak} Days
-                  </div>
-                  <div className="text-sm text-muted-foreground">Streak</div>
-                </div>
-                <div className="bg-gradient-to-br from-success/20 to-success/10 p-4 rounded-lg text-center border border-success/30">
-                  <Target className="w-8 h-8 mx-auto mb-2 text-success" />
-                  <div className="text-2xl font-bold">
-                    Level {currentStats.currentLevel}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Current Level
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -318,44 +326,6 @@ const Dashboard = () => {
                         <p className="text-sm">{item.fact}</p>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Play Games */}
-            <div className="card-glass p-6 rounded-xl">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Quick Play</h2>
-                <Link to="/games">
-                  <Button variant="outline" size="sm">
-                    View All Games
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-4">
-                {quickGames.map((game, idx) => (
-                  <div
-                    key={idx}
-                    className="card-glass p-6 rounded-lg hover:scale-105 transition-transform cursor-pointer group"
-                  >
-                    <div
-                      className={`w-16 h-16 ${game.color} rounded-full flex items-center justify-center text-3xl mb-4 mx-auto group-hover:shadow-glow transition-shadow`}
-                    >
-                      {game.icon}
-                    </div>
-                    <h3 className="font-bold text-center mb-2">{game.title}</h3>
-                    <div className="flex justify-between text-sm text-muted-foreground mb-4">
-                      <span>{game.difficulty}</span>
-                      <span className="text-primary font-medium">
-                        +{game.xp} XP
-                      </span>
-                    </div>
-                    <Button variant="hero" size="sm" className="w-full">
-                      <Play className="w-4 h-4 mr-2" />
-                      Play Now
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -431,8 +401,8 @@ const Dashboard = () => {
           </div>
 
           {/* Scam News Sidebar - 25% */}
-          <div className="w-80 space-y-6">
-            <div className="card-glass p-6 rounded-xl sticky top-6">
+          <div className="w-full lg:w-80 space-y-6">
+            <div className="card-glass p-6 rounded-xl sticky top-24">
               <div className="flex items-center gap-2 mb-6">
                 <AlertTriangle className="w-6 h-6 text-destructive" />
                 <h2 className="text-xl font-bold">Latest Scam Alerts</h2>
