@@ -52,61 +52,8 @@ const StoryGame = () => {
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [showChoices, setShowChoices] = useState(false);
 
-  // Load frame images
-  useEffect(() => {
-    const loadFrameImage = async (frameKey: string, prompt: string) => {
-      if (frameImages[frameKey] || loadingFrames.has(frameKey)) {
-        return;
-      }
-
-      setLoadingFrames(prev => new Set(prev).add(frameKey));
-      
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-scene-image`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              sceneTitle: scenes[currentScene].title,
-              sceneDescription: prompt,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to generate image');
-        }
-
-        const data = await response.json();
-        
-        if (data.imageUrl) {
-          setFrameImages(prev => ({
-            ...prev,
-            [frameKey]: data.imageUrl
-          }));
-        }
-      } catch (error) {
-        console.error('Error loading frame image:', error);
-      } finally {
-        setLoadingFrames(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(frameKey);
-          return newSet;
-        });
-      }
-    };
-
-    if (gamePhase === "story" && scenes[currentScene]) {
-      const currentFrame = scenes[currentScene].frames[currentFrameIndex];
-      if (currentFrame) {
-        const frameKey = `scene${currentScene}_frame${currentFrameIndex}`;
-        loadFrameImage(frameKey, currentFrame.imagePrompt);
-      }
-    }
-  }, [currentScene, currentFrameIndex, gamePhase]);
+  // Preload all story images
+  const storyImages = import.meta.glob('@/assets/story/*.png', { eager: true, as: 'url' });
 
   // Auto-advance frames or show choices
   useEffect(() => {
@@ -614,19 +561,11 @@ const StoryGame = () => {
                   {/* Frame Image */}
                   <div className="relative bg-gradient-primary/5">
                     {(() => {
-                      const frameKey = `scene${currentScene}_frame${currentFrameIndex}`;
-                      const isLoading = loadingFrames.has(frameKey);
-                      const imageUrl = frameImages[frameKey];
+                      const imagePath = `/src/assets/story/scene${currentScene}-frame${currentFrameIndex}.png`;
+                      const imageUrl = storyImages[imagePath];
                       const currentFrame = scenes[currentScene].frames[currentFrameIndex];
                       
-                      return isLoading ? (
-                        <div className="w-full aspect-video flex items-center justify-center p-8">
-                          <div className="text-center space-y-4 w-full">
-                            <Skeleton className="w-full aspect-video" />
-                            <p className="text-sm text-muted-foreground">Generating frame {currentFrameIndex + 1}...</p>
-                          </div>
-                        </div>
-                      ) : imageUrl ? (
+                      return imageUrl ? (
                         <img 
                           src={imageUrl} 
                           alt={currentFrame?.dialogue || ''}
